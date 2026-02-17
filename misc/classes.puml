@@ -1,43 +1,88 @@
 @startuml
+title Google Agent2Agent (A2A) Protocol — Complete Class Diagram (v0.3 / RC1)
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam ArrowColor #444444
+skinparam ClassBorderColor #336699
+skinparam ClassBackgroundColor #EEF4FF
+skinparam PackageBorderColor #336699
+skinparam PackageBackgroundColor #F8FBFF
+skinparam NoteBackgroundColor #FFFFF0
+skinparam NoteBorderColor #AAAAAA
 
 package "Google A2A Protocol" {
 
-    ' --- Enums ---
+    ' ─────────────────────────────────────
+    ' ENUMS
+    ' ─────────────────────────────────────
+
     enum TaskState {
-        SUBMITTED
-        WORKING
-        INPUT_REQUIRED
-        COMPLETED
-        FAILED
-        CANCELLED
+        TASK_STATE_SUBMITTED
+        TASK_STATE_WORKING
+        TASK_STATE_INPUT_REQUIRED
+        TASK_STATE_AUTH_REQUIRED
+        TASK_STATE_COMPLETED
+        TASK_STATE_FAILED
+        TASK_STATE_CANCELLED
+        TASK_STATE_REJECTED
+        TASK_STATE_UNKNOWN
     }
 
-    enum MessageRole {
-        USER
-        AGENT
-        SYSTEM
+    enum Role {
+        ROLE_USER
+        ROLE_AGENT
     }
 
-    enum ContentType {
-        TEXT
-        IMAGE
-        AUDIO
-        VIDEO
-        APPLICATION_JSON
-        APPLICATION_PDF
+    enum TransportType {
+        JSONRPC
+        GRPC
+        HTTP_JSON
     }
 
-    ' --- Core Data Models ---
+    ' ─────────────────────────────────────
+    ' AGENT DISCOVERY: AgentCard & related
+    ' ─────────────────────────────────────
 
     class AgentCard {
-        + string id
         + string name
         + string description
+        + string url
         + string version
-        + string[] capabilities
-        + AgentSkill[] skills
-        + AuthenticationScheme authentication
-        + AgentEndpoints endpoints
+        + string protocolVersion
+        + string iconUrl
+        + string documentationUrl
+        + string[] defaultInputModes
+        + string[] defaultOutputModes
+        + boolean supportsAuthenticatedExtendedCard
+        --
+        ' Composed objects (see relationships)
+        ' provider: AgentProvider
+        ' capabilities: AgentCapabilities
+        ' skills: AgentSkill[]
+        ' securitySchemes: Map<string, SecurityScheme>
+        ' security: List<Map<string, string[]>>
+        ' extensions: AgentExtension[]
+        ' interfaces: AgentInterface[]
+    }
+
+    note right of AgentCard
+      Published at:
+      /.well-known/agent.json
+      (unauthenticated public card)
+      Extended card requires auth.
+    end note
+
+    class AgentProvider {
+        + string organization
+        + string url
+    }
+
+    class AgentCapabilities {
+        + boolean streaming
+        + boolean pushNotifications
+        + boolean stateTransitionHistory
     }
 
     class AgentSkill {
@@ -46,116 +91,438 @@ package "Google A2A Protocol" {
         + string description
         + string[] tags
         + string[] examples
-        + ContentType[] inputModes
-        + ContentType[] outputModes
-        + JSONSchema inputSchema
-        + JSONSchema outputSchema
+        + string[] inputModes
+        + string[] outputModes
     }
 
-    class AgentEndpoints {
-        + string discoveryUrl
-        + string taskUrl
-        + string streamingUrl
+    class AgentInterface {
+        + string transport
+        + string url
     }
 
-    class AuthenticationScheme {
-        + string type
-        + string[] scopes
-        + Map<string, string> metadata
+    note bottom of AgentInterface
+      transport values:
+      "JSONRPC", "GRPC", "HTTP+JSON"
+    end note
+
+    class AgentExtension {
+        + string uri
+        + string description
+        + boolean required
+        + Map<string, any> params
     }
 
-    ' --- Task Management ---
+    class AgentCardSignature {
+        + string keyId
+        + string alg
+        + string signature
+        + string canonicalization
+    }
+
+    ' ─────────────────────────────────────
+    ' TASK LIFECYCLE
+    ' ─────────────────────────────────────
 
     class Task {
-        + string taskId
-        + string correlationId
-        + TaskStatus status
-        + Message[] history
-        + Artifact[] artifacts
-        + Map<string, any> context
+        + string id
+        + string contextId
+        + string kind
+        --
+        ' status: TaskStatus
+        ' history: Message[]
+        ' artifacts: Artifact[]
+        ' metadata: Map<string, any>
     }
 
     class TaskStatus {
         + TaskState state
-        + string statusMessage
-        + float progress
-        + DateTime lastUpdated
+        + string timestamp
+        --
+        ' message: Message (optional — last agent message)
     }
+
+    ' ─────────────────────────────────────
+    ' MESSAGING
+    ' ─────────────────────────────────────
 
     class Message {
         + string messageId
-        + MessageRole role
-        + DateTime timestamp
-        + MessagePart[] content
+        + string kind
+        + string taskId
+        + string contextId
+        + string[] referenceTaskIds
+        + string[] extensions
+        + Map<string, any> metadata
+        --
+        ' role: Role
+        ' parts: Part[]
     }
 
-    class MessagePart {
-        + ContentType type
-        + string text
-        + string mimeType
-        + Blob data
-        + string uri
+    ' Part union type — resolved to concrete subtypes
+    abstract class Part {
+        + Map<string, any> metadata
     }
+
+    class TextPart {
+        + string kind = "text"
+        + string text
+    }
+
+    class FilePart {
+        + string kind = "file"
+        --
+        ' file: FileWithBytes | FileWithUri
+    }
+
+    class DataPart {
+        + string kind = "data"
+        + Map<string, any> data
+    }
+
+    class FileWithBytes {
+        + string bytes
+        + string name
+        + string mimeType
+    }
+
+    class FileWithUri {
+        + string uri
+        + string name
+        + string mimeType
+    }
+
+    ' ─────────────────────────────────────
+    ' ARTIFACTS
+    ' ─────────────────────────────────────
 
     class Artifact {
         + string artifactId
         + string name
-        + ContentType type
-        + string uri
-        + Blob data
+        + string description
+        + string[] extensions
+        + Map<string, any> metadata
+        --
+        ' parts: Part[]
+    }
+
+    ' ─────────────────────────────────────
+    ' STREAMING EVENTS
+    ' ─────────────────────────────────────
+
+    class TaskStatusUpdateEvent {
+        + string taskId
+        + string contextId
+        + string kind = "status-update"
+        + boolean final
+        --
+        ' status: TaskStatus
+        ' metadata: Map<string, any>
+    }
+
+    class TaskArtifactUpdateEvent {
+        + string taskId
+        + string contextId
+        + string kind = "artifact-update"
+        + boolean append
+        + boolean lastChunk
+        --
+        ' artifact: Artifact
+        ' metadata: Map<string, any>
+    }
+
+    ' ─────────────────────────────────────
+    ' PUSH NOTIFICATIONS
+    ' ─────────────────────────────────────
+
+    class PushNotificationConfig {
+        + string id
+        + string url
+        + string token
+        --
+        ' authentication: AuthenticationInfo
+    }
+
+    class AuthenticationInfo {
+        + string[] schemes
+        + Map<string, any> credentials
+    }
+
+    class TaskPushNotificationConfig {
+        + string taskId
+        --
+        ' pushNotificationConfig: PushNotificationConfig
+    }
+
+    ' ─────────────────────────────────────
+    ' SECURITY SCHEMES
+    ' ─────────────────────────────────────
+
+    abstract class SecurityScheme {
+        + string type
+        + string description
+    }
+
+    class APIKeySecurityScheme {
+        + string type = "apiKey"
+        + string in
+        + string name
+    }
+
+    class HTTPAuthSecurityScheme {
+        + string type = "http"
+        + string scheme
+        + string bearerFormat
+    }
+
+    class OAuth2SecurityScheme {
+        + string type = "oauth2"
+        --
+        ' flows: OAuthFlows
+    }
+
+    class OpenIdConnectSecurityScheme {
+        + string type = "openIdConnect"
+        + string openIdConnectUrl
+    }
+
+    class MutualTlsSecurityScheme {
+        + string type = "mutualTLS"
+    }
+
+    class OAuthFlows {
+        --
+        ' authorizationCode: AuthorizationCodeOAuthFlow
+        ' clientCredentials: ClientCredentialsOAuthFlow
+        ' deviceCode: DeviceCodeOAuthFlow
+    }
+
+    ' ─────────────────────────────────────
+    ' JSON-RPC LAYER
+    ' ─────────────────────────────────────
+
+    class JSONRPCRequest {
+        + string jsonrpc = "2.0"
+        + string id
+        + string method
+        --
+        ' params: object
+    }
+
+    class JSONRPCResponse {
+        + string jsonrpc = "2.0"
+        + string id
+        --
+        ' result: object
+        ' error: JSONRPCError
+    }
+
+    class JSONRPCError {
+        + int code
+        + string message
+        + any data
+    }
+
+    ' ─────────────────────────────────────
+    ' OPERATION PAYLOADS
+    ' ─────────────────────────────────────
+
+    class SendMessageRequest {
+        + string id
+        --
+        ' params: MessageSendParams
+    }
+
+    class MessageSendParams {
+        + string contextId
+        + int historyLength
+        + Map<string, any> metadata
+        --
+        ' message: Message
+        ' configuration: SendMessageConfiguration
+    }
+
+    class SendMessageConfiguration {
+        + boolean blocking
+        + string[] acceptedOutputModes
+        + int historyLength
+        + Map<string, any> metadata
+        --
+        ' pushNotificationConfig: PushNotificationConfig
+    }
+
+    class GetTaskRequest {
+        + string id
+        --
+        ' params: TaskQueryParams
+    }
+
+    class TaskQueryParams {
+        + string taskId
+        + int historyLength
         + Map<string, any> metadata
     }
 
-    ' --- Communication Payloads (JSON-RPC) ---
-
-    class SendTaskRequest {
-        + string taskId
-        + string agentId
-        + Message message
-        + Map<string, any> params
+    class ListTasksRequest {
+        + string id
+        --
+        ' params: TaskListParams
     }
 
-    class SendTaskResponse {
-        + string taskId
-        + TaskStatus status
+    class TaskListParams {
+        + string contextId
+        + string status
+        + int pageSize
+        + string pageToken
+        + int historyLength
     }
 
-    ' --- Interfaces / Service Layer ---
+    class CancelTaskRequest {
+        + string id
+        --
+        ' params: TaskIdParams
+    }
+
+    class TaskIdParams {
+        + string taskId
+        + Map<string, any> metadata
+    }
+
+    ' ─────────────────────────────────────
+    ' SERVICE LAYER
+    ' ─────────────────────────────────────
 
     interface A2AServer {
         + AgentCard getAgentCard()
-        + Task submitTask(SendTaskRequest request)
-        + Task getTaskStatus(string taskId)
-        + void cancelTask(string taskId)
+        + AgentCard getExtendedAgentCard()
+        + Task sendMessage(SendMessageRequest request)
+        + Stream<Event> sendStreamingMessage(SendMessageRequest request)
+        + Task getTask(GetTaskRequest request)
+        + Task[] listTasks(ListTasksRequest request)
+        + Task cancelTask(CancelTaskRequest request)
+        + void subscribeToTask(string taskId)
+        + PushNotificationConfig createPushNotificationConfig(PushNotificationConfig config)
+        + PushNotificationConfig getPushNotificationConfig(string configId)
+        + PushNotificationConfig[] listPushNotificationConfigs()
+        + void deletePushNotificationConfig(string configId)
     }
 
     class A2AClient {
         + A2AClient(string agentUrl)
         + AgentCard discover()
-        + Task sendTask(string goal, Map params)
-        + Stream<Task> sendTaskStreaming(string goal)
+        + Task sendMessage(Message message, SendMessageConfiguration config)
+        + Stream<Event> sendStreamingMessage(Message message)
+        + Task getTask(string taskId)
+        + Task[] listTasks(TaskListParams params)
+        + Task cancelTask(string taskId)
+        + void subscribeToTask(string taskId)
+        + PushNotificationConfig setPushNotification(string taskId, PushNotificationConfig config)
     }
 
-    ' --- Relationships ---
+    class AgentExecutor {
+        + {abstract} void execute(RequestContext context, EventQueue queue)
+        + {abstract} Task cancel(RequestContext context, EventQueue queue)
+    }
 
-    ' Composition
-    AgentCard "1" *-- "many" AgentSkill : contains
-    AgentCard "1" *-- "1" AgentEndpoints : defines
-    AgentCard "1" *-- "1" AuthenticationScheme : requires
+    class RequestContext {
+        + string taskId
+        + string contextId
+        + string conversationId
+        + Message message
+        + string getUserInput()
+    }
 
-    Task "1" *-- "1" TaskStatus : tracks
-    Task "1" *-- "many" Message : logs
-    Task "1" *-- "many" Artifact : produces
+    class EventQueue {
+        + void enqueueEvent(Event event)
+    }
 
-    Message "1" *-- "many" MessagePart : consists of
+    ' ─────────────────────────────────────
+    ' RELATIONSHIPS — AgentCard composition
+    ' ─────────────────────────────────────
 
-    ' Dependency / Usage
+    AgentCard "1" *-- "1" AgentCapabilities : has
+    AgentCard "1" *-- "0..1" AgentProvider : providedBy
+    AgentCard "1" *-- "many" AgentSkill : exposes
+    AgentCard "1" *-- "many" AgentInterface : supportsTransportVia
+    AgentCard "1" *-- "0..many" AgentExtension : declares
+    AgentCard "1" *-- "0..many" AgentCardSignature : signedWith
+    AgentCard "0..many" *-- "many" SecurityScheme : securedBy
+
+    ' Task composition
+    Task "1" *-- "1" TaskStatus : hasStatus
+    Task "1" *-- "0..many" Message : history
+    Task "1" *-- "0..many" Artifact : produces
+    TaskStatus "1" *-- "1" TaskState : state
+    TaskStatus "0..1" *-- "0..1" Message : lastAgentMessage
+
+    ' Message composition
+    Message "1" *-- "many" Part : consistsOf
+    Message "1" -- "1" Role : sentBy
+
+    ' Part subtypes
+    Part <|-- TextPart
+    Part <|-- FilePart
+    Part <|-- DataPart
+    FilePart "1" *-- "1" FileWithBytes : OR
+    FilePart "1" *-- "1" FileWithUri : OR
+
+    ' Artifact composition
+    Artifact "1" *-- "many" Part : madeOf
+
+    ' Streaming events
+    TaskStatusUpdateEvent "1" *-- "1" TaskStatus : carries
+    TaskArtifactUpdateEvent "1" *-- "1" Artifact : carries
+
+    ' Push notification composition
+    PushNotificationConfig "1" *-- "0..1" AuthenticationInfo : securedBy
+    TaskPushNotificationConfig "1" *-- "1" PushNotificationConfig : wraps
+
+    ' Security scheme subtypes
+    SecurityScheme <|-- APIKeySecurityScheme
+    SecurityScheme <|-- HTTPAuthSecurityScheme
+    SecurityScheme <|-- OAuth2SecurityScheme
+    SecurityScheme <|-- OpenIdConnectSecurityScheme
+    SecurityScheme <|-- MutualTlsSecurityScheme
+    OAuth2SecurityScheme "1" *-- "1" OAuthFlows : defines
+
+    ' JSON-RPC structure
+    JSONRPCResponse "0..1" *-- "0..1" JSONRPCError : containsOnError
+
+    ' Request payloads
+    SendMessageRequest "1" *-- "1" MessageSendParams : params
+    MessageSendParams "1" *-- "1" Message : includes
+    MessageSendParams "0..1" *-- "0..1" SendMessageConfiguration : configuredBy
+    SendMessageConfiguration "0..1" *-- "0..1" PushNotificationConfig : notifyVia
+
+    GetTaskRequest "1" *-- "1" TaskQueryParams : params
+    ListTasksRequest "1" *-- "1" TaskListParams : params
+    CancelTaskRequest "1" *-- "1" TaskIdParams : params
+
+    ' Service layer usage
     A2AServer ..> AgentCard : exposes
     A2AServer ..> Task : manages
-    A2AClient ..> SendTaskRequest : sends
-    A2AClient ..> Task : receives
-    A2AClient --> A2AServer : communicates via HTTP/JSON-RPC
+    A2AServer ..> TaskStatusUpdateEvent : emits
+    A2AServer ..> TaskArtifactUpdateEvent : emits
+    A2AServer ..> PushNotificationConfig : manages
 
+    A2AClient ..> SendMessageRequest : constructs
+    A2AClient ..> Task : receives
+    A2AClient ..> TaskStatusUpdateEvent : receives
+    A2AClient ..> TaskArtifactUpdateEvent : receives
+    A2AClient --> A2AServer : communicates via HTTP/JSON-RPC/gRPC
+
+    A2AServer ..> AgentExecutor : delegates to
+    AgentExecutor ..> RequestContext : processes
+    AgentExecutor ..> EventQueue : publishesTo
 }
+
+legend right
+  |= Symbol |= Meaning |
+  | *-- | Composition |
+  | <|-- | Inheritance / Subtype |
+  | ..> | Dependency / Usage |
+  | --> | Association |
+  Sources: a2a-protocol.org specification RC1/v0.3,
+  official Python SDK types, GitHub a2aproject/A2A
+endlegend
 
 @enduml
