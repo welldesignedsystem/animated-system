@@ -1,0 +1,161 @@
+@startuml
+
+package "Google A2A Protocol" {
+
+    ' --- Enums ---
+    enum TaskState {
+        SUBMITTED
+        WORKING
+        INPUT_REQUIRED
+        COMPLETED
+        FAILED
+        CANCELLED
+    }
+
+    enum MessageRole {
+        USER
+        AGENT
+        SYSTEM
+    }
+
+    enum ContentType {
+        TEXT
+        IMAGE
+        AUDIO
+        VIDEO
+        APPLICATION_JSON
+        APPLICATION_PDF
+    }
+
+    ' --- Core Data Models ---
+
+    class AgentCard {
+        + string id
+        + string name
+        + string description
+        + string version
+        + string[] capabilities
+        + AgentSkill[] skills
+        + AuthenticationScheme authentication
+        + AgentEndpoints endpoints
+    }
+
+    class AgentSkill {
+        + string id
+        + string name
+        + string description
+        + string[] tags
+        + string[] examples
+        + ContentType[] inputModes
+        + ContentType[] outputModes
+        + JSONSchema inputSchema
+        + JSONSchema outputSchema
+    }
+
+    class AgentEndpoints {
+        + string discoveryUrl
+        + string taskUrl
+        + string streamingUrl
+    }
+
+    class AuthenticationScheme {
+        + string type
+        + string[] scopes
+        + Map<string, string> metadata
+    }
+
+    ' --- Task Management ---
+
+    class Task {
+        + string taskId
+        + string correlationId
+        + TaskStatus status
+        + Message[] history
+        + Artifact[] artifacts
+        + Map<string, any> context
+    }
+
+    class TaskStatus {
+        + TaskState state
+        + string statusMessage
+        + float progress
+        + DateTime lastUpdated
+    }
+
+    class Message {
+        + string messageId
+        + MessageRole role
+        + DateTime timestamp
+        + MessagePart[] content
+    }
+
+    class MessagePart {
+        + ContentType type
+        + string text
+        + string mimeType
+        + Blob data
+        + string uri
+    }
+
+    class Artifact {
+        + string artifactId
+        + string name
+        + ContentType type
+        + string uri
+        + Blob data
+        + Map<string, any> metadata
+    }
+
+    ' --- Communication Payloads (JSON-RPC) ---
+
+    class SendTaskRequest {
+        + string taskId
+        + string agentId
+        + Message message
+        + Map<string, any> params
+    }
+
+    class SendTaskResponse {
+        + string taskId
+        + TaskStatus status
+    }
+
+    ' --- Interfaces / Service Layer ---
+
+    interface A2AServer {
+        + AgentCard getAgentCard()
+        + Task submitTask(SendTaskRequest request)
+        + Task getTaskStatus(string taskId)
+        + void cancelTask(string taskId)
+    }
+
+    class A2AClient {
+        + A2AClient(string agentUrl)
+        + AgentCard discover()
+        + Task sendTask(string goal, Map params)
+        + Stream<Task> sendTaskStreaming(string goal)
+    }
+
+    ' --- Relationships ---
+
+    ' Composition
+    AgentCard "1" *-- "many" AgentSkill : contains
+    AgentCard "1" *-- "1" AgentEndpoints : defines
+    AgentCard "1" *-- "1" AuthenticationScheme : requires
+
+    Task "1" *-- "1" TaskStatus : tracks
+    Task "1" *-- "many" Message : logs
+    Task "1" *-- "many" Artifact : produces
+
+    Message "1" *-- "many" MessagePart : consists of
+
+    ' Dependency / Usage
+    A2AServer ..> AgentCard : exposes
+    A2AServer ..> Task : manages
+    A2AClient ..> SendTaskRequest : sends
+    A2AClient ..> Task : receives
+    A2AClient --> A2AServer : communicates via HTTP/JSON-RPC
+
+}
+
+@enduml
