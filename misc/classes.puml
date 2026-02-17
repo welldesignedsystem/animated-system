@@ -1,6 +1,4 @@
 @startuml
-title Google Agent2Agent (A2A) Protocol — Complete Class Diagram (v0.3 / RC1)
-
 skinparam packageStyle rectangle
 skinparam classAttributeIconSize 0
 skinparam classFontStyle bold
