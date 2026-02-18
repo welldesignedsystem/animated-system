@@ -9,7 +9,8 @@ skinparam PackageBorderColor #336699
 skinparam PackageBackgroundColor #F8FBFF
 skinparam NoteBackgroundColor #FFFFF0
 skinparam NoteBorderColor #AAAAAA
-skinparam linetype ortho
+skinparam ClassHeaderBackgroundColor #D0E4FF
+skinparam linetype curved
 
 package "Google A2A Protocol (v0.2.5)" {
 
@@ -18,7 +19,8 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     abstract class A2ABaseModel {
-        ' Pydantic base for all A2A types
+        .. Pydantic base model for all A2A types ..
+        .. All protocol types inherit from this ..
     }
 
     ' ─────────────────────────────────────
@@ -26,6 +28,7 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     enum TaskState {
+        .. All possible lifecycle states of a task ..
         submitted
         working
         input_required
@@ -38,17 +41,20 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     enum Role {
+        .. Identifies who sent a message in a conversation ..
         user
         agent
     }
 
     enum In {
+        .. Location of an API key in the HTTP request ..
         header
         query
         cookie
     }
 
     enum TransportType {
+        .. Transport protocol used by an AgentInterface ..
         JSONRPC
         GRPC
         HTTP_JSON
@@ -59,6 +65,9 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     class AgentCard {
+        .. Public manifest describing an agent's identity, ..
+        .. capabilities, skills and security requirements. ..
+        .. Published at /.well-known/agent.json ..
         + string name
         + string description
         + string url
@@ -87,11 +96,14 @@ package "Google A2A Protocol (v0.2.5)" {
     end note
 
     class AgentProvider {
+        .. Organization or company that operates the agent ..
         + string organization
         + string url
     }
 
     class AgentCapabilities {
+        .. Feature flags declaring what optional protocol ..
+        .. features the agent supports ..
         + boolean streaming
         + boolean pushNotifications
         + boolean stateTransitionHistory
@@ -100,6 +112,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class AgentSkill {
+        .. A specific capability or function the agent can ..
+        .. perform, with its supported I/O modes ..
         + string id
         + string name
         + string description
@@ -110,6 +124,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class AgentInterface {
+        .. A concrete endpoint the agent exposes, ..
+        .. paired with its transport protocol ..
         + string url
         --
         ' transport: TransportType
@@ -121,6 +137,8 @@ package "Google A2A Protocol (v0.2.5)" {
     end note
 
     class AgentExtension {
+        .. A declared extension to the core protocol, ..
+        .. identified by URI, optionally with parameters ..
         + string uri
         + string description (optional)
         + boolean required (optional)
@@ -128,6 +146,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class AgentCardSignature {
+        .. Cryptographic signature over the AgentCard ..
+        .. to verify its authenticity and integrity ..
         + string keyId
         + string alg
         + string signature
@@ -139,6 +159,8 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     class Task {
+        .. The primary unit of work in A2A. Tracks state, ..
+        .. message history and produced artifacts ..
         + string id
         + string contextId
         + string kind = "task"
@@ -150,6 +172,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class TaskStatus {
+        .. Current state of a task along with the ..
+        .. agent's last status message and timestamp ..
         + string timestamp (ISO 8601, optional)
         --
         ' state: TaskState
@@ -161,6 +185,8 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     class Message {
+        .. The basic unit of communication between a user ..
+        .. and an agent, composed of one or more Parts ..
         + string messageId
         + string kind = "message"
         + string taskId (optional)
@@ -174,32 +200,41 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     abstract class Part {
+        .. Abstract union type for message content. ..
+        .. Concrete types: TextPart, FilePart, DataPart ..
         + Map<string, any> metadata (optional)
     }
 
     class TextPart {
+        .. A plain-text segment of a message ..
         + string kind = "text"
         + string text
     }
 
     class FilePart {
+        .. A file attachment — either inline bytes or a URI ..
         + string kind = "file"
         --
         ' file: FileWithBytes | FileWithUri
     }
 
     class DataPart {
+        .. Structured JSON data embedded in a message, ..
+        .. useful for form inputs and structured outputs ..
         + string kind = "data"
         + Map<string, any> data
     }
 
     class FileWithBytes {
-        + string bytes  ' base64-encoded
+        .. Inline file content as base64-encoded bytes ..
+        + string bytes
         + string name (optional)
         + string mimeType (optional)
     }
 
     class FileWithUri {
+        .. File referenced by a remote URI instead of ..
+        .. being embedded inline ..
         + string uri
         + string name (optional)
         + string mimeType (optional)
@@ -210,6 +245,8 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     class Artifact {
+        .. A named output produced by a task, such as a ..
+        .. generated file, report, or structured result ..
         + string artifactId
         + string name (optional)
         + string description (optional)
@@ -224,6 +261,8 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     class TaskStatusUpdateEvent {
+        .. Streamed event reporting a change in task state. ..
+        .. final=true signals the stream is complete ..
         + string taskId
         + string contextId
         + string kind = "status-update"
@@ -234,6 +273,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class TaskArtifactUpdateEvent {
+        .. Streamed event delivering an artifact or chunk. ..
+        .. lastChunk=true signals end of artifact stream ..
         + string taskId
         + string contextId
         + string kind = "artifact-update"
@@ -249,6 +290,8 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     class PushNotificationConfig {
+        .. Webhook configuration for the agent to push ..
+        .. task updates to an external URL ..
         + string url
         + string id (optional)
         + string token (optional)
@@ -257,11 +300,15 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class PushNotificationAuthenticationInfo {
+        .. Authentication details required when the agent ..
+        .. calls the push notification webhook URL ..
         + string[] schemes
         + string credentials (optional)
     }
 
     class TaskPushNotificationConfig {
+        .. Associates a push notification configuration ..
+        .. with a specific task ID ..
         + string taskId
         --
         ' pushNotificationConfig: PushNotificationConfig
@@ -272,11 +319,14 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     abstract class SecurityScheme {
+        .. Abstract base for all supported authentication ..
+        .. and authorization schemes on an AgentCard ..
         + string type
         + string description (optional)
     }
 
     class APIKeySecurityScheme {
+        .. API key passed in header, query param, or cookie ..
         + string type = "apiKey"
         + string name
         --
@@ -284,27 +334,35 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class HTTPAuthSecurityScheme {
+        .. Standard HTTP authentication such as Bearer ..
+        .. tokens or Basic auth credentials ..
         + string type = "http"
         + string scheme
         + string bearerFormat (optional)
     }
 
     class OAuth2SecurityScheme {
+        .. OAuth 2.0 authorization with configurable flows ..
+        .. (implicit, password, client_credentials, authCode) ..
         + string type = "oauth2"
         --
         ' flows: OAuthFlows
     }
 
     class OpenIdConnectSecurityScheme {
+        .. OpenID Connect discovery-based authentication ..
         + string type = "openIdConnect"
         + string openIdConnectUrl
     }
 
     class MutualTlsSecurityScheme {
+        .. Mutual TLS client certificate authentication ..
         + string type = "mutualTLS"
     }
 
     class OAuthFlows {
+        .. Container for all supported OAuth 2.0 grant flows. ..
+        .. At least one flow must be defined ..
         --
         ' implicit: ImplicitOAuthFlow (optional)
         ' password: PasswordOAuthFlow (optional)
@@ -314,24 +372,32 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class ImplicitOAuthFlow {
+        .. OAuth 2.0 implicit grant — token returned ..
+        .. directly from authorization endpoint ..
         + string authorizationUrl
         + string refreshUrl (optional)
         + Map<string, string> scopes
     }
 
     class PasswordOAuthFlow {
+        .. OAuth 2.0 resource owner password credentials ..
+        .. grant — user provides username and password ..
         + string tokenUrl
         + string refreshUrl (optional)
         + Map<string, string> scopes
     }
 
     class ClientCredentialsOAuthFlow {
+        .. OAuth 2.0 client credentials grant — machine-to- ..
+        .. machine auth without user involvement ..
         + string tokenUrl
         + string refreshUrl (optional)
         + Map<string, string> scopes
     }
 
     class AuthorizationCodeOAuthFlow {
+        .. OAuth 2.0 authorization code grant — standard ..
+        .. user-interactive login flow with redirect ..
         + string authorizationUrl
         + string tokenUrl
         + string refreshUrl (optional)
@@ -339,6 +405,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class DeviceCodeOAuthFlow {
+        .. OAuth 2.0 device authorization grant — for ..
+        .. input-constrained devices (TV, CLI tools) ..
         + string deviceAuthorizationUrl
         + string tokenUrl
         + string refreshUrl (optional)
@@ -350,11 +418,15 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     class JSONRPCMessage {
+        .. Base class for all JSON-RPC 2.0 messages, ..
+        .. shared by requests and responses ..
         + string jsonrpc = "2.0"
         + string | int id (optional)
     }
 
     class JSONRPCRequest {
+        .. A JSON-RPC 2.0 request invoking a named ..
+        .. method with optional parameters ..
         + string jsonrpc = "2.0"
         + string method
         + string | int id (optional)
@@ -363,6 +435,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class JSONRPCSuccessResponse {
+        .. A JSON-RPC 2.0 success response containing ..
+        .. the result of the invoked method ..
         + string jsonrpc = "2.0"
         + string | int id (optional)
         --
@@ -370,6 +444,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class JSONRPCErrorResponse {
+        .. A JSON-RPC 2.0 error response returned when ..
+        .. a request cannot be fulfilled ..
         + string jsonrpc = "2.0"
         + string | int id (optional)
         --
@@ -377,76 +453,101 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class JSONRPCError {
+        .. Base error structure with numeric code, ..
+        .. message string, and optional detail data ..
         + int code
         + string message
         + any data (optional)
     }
 
     ' ─────────────────────────────────────
-    ' ERROR TYPES (A2A-specific + standard)
+    ' ERROR TYPES — Standard JSON-RPC
     ' ─────────────────────────────────────
 
     class JSONParseError {
+        .. Returned when the request body is not valid JSON ..
         + int code = -32700
         + string message = "Invalid JSON payload"
         + any data (optional)
     }
 
     class InvalidRequestError {
+        .. Returned when the JSON-RPC request object fails ..
+        .. schema validation ..
         + int code = -32600
         + string message = "Request payload validation error"
         + any data (optional)
     }
 
     class MethodNotFoundError {
+        .. Returned when the requested method does not ..
+        .. exist on this agent ..
         + int code = -32601
         + string message = "Method not found"
         + any data (optional)
     }
 
     class InvalidParamsError {
+        .. Returned when method parameters are structurally ..
+        .. invalid or missing required fields ..
         + int code = -32602
         + string message = "Invalid parameters"
         + any data (optional)
     }
 
     class InternalError {
+        .. Returned when an unexpected server-side error ..
+        .. occurs during request processing ..
         + int code = -32603
         + string message = "Internal error"
         + any data (optional)
     }
 
+    ' ─────────────────────────────────────
+    ' ERROR TYPES — A2A Specific
+    ' ─────────────────────────────────────
+
     class TaskNotFoundError {
+        .. The referenced task ID does not exist ..
         + int code = -32001
         + string message = "Task not found"
         + any data (optional)
     }
 
     class TaskNotCancelableError {
+        .. The task is in a terminal state and cannot ..
+        .. be canceled ..
         + int code = -32002
         + string message = "Task cannot be canceled"
         + any data (optional)
     }
 
     class PushNotificationNotSupportedError {
+        .. This agent does not support push notifications ..
         + int code = -32003
         + string message = "Push Notification is not supported"
         + any data (optional)
     }
 
     class UnsupportedOperationError {
+        .. The requested operation is not implemented ..
+        .. by this agent ..
         + int code = -32004
         + string message = "This operation is not supported"
         + any data (optional)
     }
 
     class ContentTypeNotSupportedError {
+        .. The client's requested content type is ..
+        .. incompatible with the agent's capabilities ..
         + int code = -32005
         + string message = "Incompatible content types"
         + any data (optional)
     }
 
     class InvalidAgentResponseError {
+        .. The agent returned a response that does not ..
+        .. conform to the A2A protocol format ..
         + int code = -32006
         + string message = "Invalid agent response"
         + any data (optional)
@@ -457,6 +558,8 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     class SendMessageRequest {
+        .. Sends a user message to an agent synchronously. ..
+        .. Returns a Task or Message when complete ..
         + string jsonrpc = "2.0"
         + string method = "message/send"
         + string | int id
@@ -465,6 +568,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class SendStreamingMessageRequest {
+        .. Sends a user message and receives a stream of ..
+        .. TaskStatusUpdateEvent / TaskArtifactUpdateEvent ..
         + string jsonrpc = "2.0"
         + string method = "message/stream"
         + string | int id
@@ -473,6 +578,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class MessageSendParams {
+        .. Parameters for sending a message — wraps the ..
+        .. message and optional send configuration ..
         + string contextId (optional)
         + Map<string, any> metadata (optional)
         --
@@ -481,6 +588,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class MessageSendConfiguration {
+        .. Controls how the agent processes and responds ..
+        .. to a message send request ..
         + string[] acceptedOutputModes
         + boolean blocking (optional)
         + int historyLength (optional)
@@ -489,6 +598,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class GetTaskRequest {
+        .. Retrieves the current state and history of ..
+        .. an existing task by its ID ..
         + string jsonrpc = "2.0"
         + string method = "tasks/get"
         + string | int id
@@ -497,12 +608,16 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class TaskQueryParams {
+        .. Parameters for fetching a task, with optional ..
+        .. limit on how many history messages to return ..
         + string id
         + int historyLength (optional)
         + Map<string, any> metadata (optional)
     }
 
     class ListTasksRequest {
+        .. Lists tasks, optionally filtered by context, ..
+        .. status, or paginated with a page token ..
         + string jsonrpc = "2.0"
         + string method = "tasks/list"
         + string | int id
@@ -511,6 +626,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class TaskListParams {
+        .. Filtering and pagination parameters for ..
+        .. the tasks/list method ..
         + string contextId (optional)
         + string status (optional)
         + int pageSize (optional)
@@ -519,6 +636,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class CancelTaskRequest {
+        .. Requests cancellation of an in-progress task. ..
+        .. Fails if task is already in a terminal state ..
         + string jsonrpc = "2.0"
         + string method = "tasks/cancel"
         + string | int id
@@ -527,11 +646,15 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class TaskIdParams {
+        .. Minimal parameter set identifying a task by ID, ..
+        .. used by cancel, resubscribe and push config ops ..
         + string id
         + Map<string, any> metadata (optional)
     }
 
     class ResubscribeToTaskRequest {
+        .. Re-opens a streaming connection to an existing ..
+        .. task to receive remaining events ..
         + string jsonrpc = "2.0"
         + string method = "tasks/resubscribe"
         + string | int id
@@ -540,6 +663,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class SetTaskPushNotificationConfigRequest {
+        .. Registers or updates a webhook push notification ..
+        .. configuration for a specific task ..
         + string jsonrpc = "2.0"
         + string method = "tasks/pushNotificationConfig/set"
         + string | int id
@@ -548,6 +673,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class GetTaskPushNotificationConfigRequest {
+        .. Retrieves the current push notification ..
+        .. configuration for a given task ..
         + string jsonrpc = "2.0"
         + string method = "tasks/pushNotificationConfig/get"
         + string | int id
@@ -556,6 +683,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class ListTaskPushNotificationConfigRequest {
+        .. Lists all push notification configurations ..
+        .. registered for a given task ..
         + string jsonrpc = "2.0"
         + string method = "tasks/pushNotificationConfig/list"
         + string | int id
@@ -564,6 +693,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class DeleteTaskPushNotificationConfigRequest {
+        .. Deletes a specific push notification configuration ..
+        .. by its config ID, optionally scoped to a task ..
         + string jsonrpc = "2.0"
         + string method = "tasks/pushNotificationConfig/delete"
         + string | int id
@@ -572,6 +703,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class PushNotificationConfigIdentifier {
+        .. Uniquely identifies a push notification config, ..
+        .. optionally scoped to a specific task ..
         + string id
         + string taskId (optional)
     }
@@ -581,26 +714,38 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     class SendMessageResponse {
+        .. Success response to message/send. Result is a ..
+        .. Task (if async) or Message (if blocking) ..
         ' result: Task | Message
     }
 
     class GetTaskResponse {
+        .. Success response containing the full Task ..
+        .. object with current status and history ..
         ' result: Task
     }
 
     class CancelTaskResponse {
+        .. Success response confirming task cancellation, ..
+        .. returning the Task in its final canceled state ..
         ' result: Task
     }
 
     class SetTaskPushNotificationConfigResponse {
+        .. Success response returning the stored ..
+        .. TaskPushNotificationConfig ..
         ' result: TaskPushNotificationConfig
     }
 
     class GetTaskPushNotificationConfigResponse {
+        .. Success response returning the push notification ..
+        .. configuration for the requested task ..
         ' result: TaskPushNotificationConfig
     }
 
     class ListTaskPushNotificationConfigResponse {
+        .. Success response listing all push notification ..
+        .. configurations registered for a task ..
         ' result: TaskPushNotificationConfig[]
     }
 
@@ -609,6 +754,8 @@ package "Google A2A Protocol (v0.2.5)" {
     ' ─────────────────────────────────────
 
     interface A2AServer {
+        .. Server-side interface that an agent implements ..
+        .. to handle all A2A protocol methods ..
         + AgentCard getAgentCard()
         + AgentCard getExtendedAgentCard()
         + Task|Message sendMessage(SendMessageRequest)
@@ -624,6 +771,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class A2AClient {
+        .. Client-side SDK used by callers to communicate ..
+        .. with a remote A2A-compliant agent server ..
         + A2AClient(string agentUrl)
         + AgentCard discover()
         + Task|Message sendMessage(Message, MessageSendConfiguration)
@@ -639,11 +788,15 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     abstract class AgentExecutor {
+        .. Abstract base for agent business logic. ..
+        .. Implementors handle task execution and cancellation ..
         + {abstract} void execute(RequestContext, EventQueue)
         + {abstract} void cancel(RequestContext, EventQueue)
     }
 
     class RequestContext {
+        .. Contextual information passed to AgentExecutor ..
+        .. when a message or cancel request is received ..
         + string taskId
         + string contextId
         + Message message
@@ -652,6 +805,8 @@ package "Google A2A Protocol (v0.2.5)" {
     }
 
     class EventQueue {
+        .. Queue used by AgentExecutor to emit streaming ..
+        .. status and artifact events back to the caller ..
         + void enqueueEvent(TaskStatusUpdateEvent | TaskArtifactUpdateEvent)
         + void close()
     }
