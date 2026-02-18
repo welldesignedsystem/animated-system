@@ -12,7 +12,7 @@ skinparam NoteBorderColor #AAAAAA
 skinparam ClassHeaderBackgroundColor #D0E4FF
 skinparam linetype curved
 
-package "Google A2A Protocol (v0.2.5)" {
+package "Google A2A Protocol v0_2_5" {
 
     ' ─────────────────────────────────────
     ' BASE MODEL
