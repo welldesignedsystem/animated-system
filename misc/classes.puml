@@ -9,28 +9,43 @@ skinparam PackageBorderColor #336699
 skinparam PackageBackgroundColor #F8FBFF
 skinparam NoteBackgroundColor #FFFFF0
 skinparam NoteBorderColor #AAAAAA
+skinparam linetype ortho
 
-package "Google A2A Protocol" {
+package "Google A2A Protocol (v0.2.5)" {
+
+    ' ─────────────────────────────────────
+    ' BASE MODEL
+    ' ─────────────────────────────────────
+
+    abstract class A2ABaseModel {
+        ' Pydantic base for all A2A types
+    }
 
     ' ─────────────────────────────────────
     ' ENUMS
     ' ─────────────────────────────────────
 
     enum TaskState {
-        TASK_STATE_SUBMITTED
-        TASK_STATE_WORKING
-        TASK_STATE_INPUT_REQUIRED
-        TASK_STATE_AUTH_REQUIRED
-        TASK_STATE_COMPLETED
-        TASK_STATE_FAILED
-        TASK_STATE_CANCELLED
-        TASK_STATE_REJECTED
-        TASK_STATE_UNKNOWN
+        submitted
+        working
+        input_required
+        auth_required
+        completed
+        failed
+        canceled
+        rejected
+        unknown
     }
 
     enum Role {
-        ROLE_USER
-        ROLE_AGENT
+        user
+        agent
+    }
+
+    enum In {
+        header
+        query
+        cookie
     }
 
     enum TransportType {
@@ -48,28 +63,27 @@ package "Google A2A Protocol" {
         + string description
         + string url
         + string version
-        + string protocolVersion
+        + string protocolVersion = "0.2.5"
         + string iconUrl
         + string documentationUrl
         + string[] defaultInputModes
         + string[] defaultOutputModes
         + boolean supportsAuthenticatedExtendedCard
         --
-        ' Composed objects (see relationships)
-        ' provider: AgentProvider
+        ' provider: AgentProvider (optional)
         ' capabilities: AgentCapabilities
         ' skills: AgentSkill[]
-        ' securitySchemes: Map<string, SecurityScheme>
-        ' security: List<Map<string, string[]>>
-        ' extensions: AgentExtension[]
-        ' interfaces: AgentInterface[]
+        ' securitySchemes: Map<string, SecurityScheme> (optional)
+        ' security: List<Map<string, string[]>> (optional)
+        ' extensions: AgentExtension[] (optional)
+        ' interfaces: AgentInterface[] (optional)
     }
 
     note right of AgentCard
       Published at:
       /.well-known/agent.json
       (unauthenticated public card)
-      Extended card requires auth.
+      Extended card may require auth.
     end note
 
     class AgentProvider {
@@ -81,6 +95,8 @@ package "Google A2A Protocol" {
         + boolean streaming
         + boolean pushNotifications
         + boolean stateTransitionHistory
+        --
+        ' extensions: AgentExtension[] (optional)
     }
 
     class AgentSkill {
@@ -88,14 +104,15 @@ package "Google A2A Protocol" {
         + string name
         + string description
         + string[] tags
-        + string[] examples
-        + string[] inputModes
-        + string[] outputModes
+        + string[] examples (optional)
+        + string[] inputModes (optional)
+        + string[] outputModes (optional)
     }
 
     class AgentInterface {
-        + string transport
         + string url
+        --
+        ' transport: TransportType
     }
 
     note bottom of AgentInterface
@@ -105,9 +122,9 @@ package "Google A2A Protocol" {
 
     class AgentExtension {
         + string uri
-        + string description
-        + boolean required
-        + Map<string, any> params
+        + string description (optional)
+        + boolean required (optional)
+        + Map<string, any> params (optional)
     }
 
     class AgentCardSignature {
@@ -124,18 +141,18 @@ package "Google A2A Protocol" {
     class Task {
         + string id
         + string contextId
-        + string kind
+        + string kind = "task"
         --
         ' status: TaskStatus
-        ' history: Message[]
-        ' artifacts: Artifact[]
-        ' metadata: Map<string, any>
+        ' history: Message[] (optional)
+        ' artifacts: Artifact[] (optional)
+        ' metadata: Map<string, any> (optional)
     }
 
     class TaskStatus {
-        + TaskState state
-        + string timestamp
+        + string timestamp (ISO 8601, optional)
         --
+        ' state: TaskState
         ' message: Message (optional — last agent message)
     }
 
@@ -145,20 +162,19 @@ package "Google A2A Protocol" {
 
     class Message {
         + string messageId
-        + string kind
-        + string taskId
-        + string contextId
-        + string[] referenceTaskIds
-        + string[] extensions
-        + Map<string, any> metadata
+        + string kind = "message"
+        + string taskId (optional)
+        + string contextId (optional)
+        + string[] referenceTaskIds (optional)
+        + string[] extensions (optional)
+        + Map<string, any> metadata (optional)
         --
         ' role: Role
         ' parts: Part[]
     }
 
-    ' Part union type — resolved to concrete subtypes
     abstract class Part {
-        + Map<string, any> metadata
+        + Map<string, any> metadata (optional)
     }
 
     class TextPart {
@@ -178,15 +194,15 @@ package "Google A2A Protocol" {
     }
 
     class FileWithBytes {
-        + string bytes
-        + string name
-        + string mimeType
+        + string bytes  ' base64-encoded
+        + string name (optional)
+        + string mimeType (optional)
     }
 
     class FileWithUri {
         + string uri
-        + string name
-        + string mimeType
+        + string name (optional)
+        + string mimeType (optional)
     }
 
     ' ─────────────────────────────────────
@@ -195,10 +211,10 @@ package "Google A2A Protocol" {
 
     class Artifact {
         + string artifactId
-        + string name
-        + string description
-        + string[] extensions
-        + Map<string, any> metadata
+        + string name (optional)
+        + string description (optional)
+        + string[] extensions (optional)
+        + Map<string, any> metadata (optional)
         --
         ' parts: Part[]
     }
@@ -214,18 +230,18 @@ package "Google A2A Protocol" {
         + boolean final
         --
         ' status: TaskStatus
-        ' metadata: Map<string, any>
+        ' metadata: Map<string, any> (optional)
     }
 
     class TaskArtifactUpdateEvent {
         + string taskId
         + string contextId
         + string kind = "artifact-update"
-        + boolean append
-        + boolean lastChunk
+        + boolean append (optional)
+        + boolean lastChunk (optional)
         --
         ' artifact: Artifact
-        ' metadata: Map<string, any>
+        ' metadata: Map<string, any> (optional)
     }
 
     ' ─────────────────────────────────────
@@ -233,16 +249,16 @@ package "Google A2A Protocol" {
     ' ─────────────────────────────────────
 
     class PushNotificationConfig {
-        + string id
         + string url
-        + string token
+        + string id (optional)
+        + string token (optional)
         --
-        ' authentication: AuthenticationInfo
+        ' authentication: PushNotificationAuthenticationInfo (optional)
     }
 
-    class AuthenticationInfo {
+    class PushNotificationAuthenticationInfo {
         + string[] schemes
-        + Map<string, any> credentials
+        + string credentials (optional)
     }
 
     class TaskPushNotificationConfig {
@@ -257,19 +273,20 @@ package "Google A2A Protocol" {
 
     abstract class SecurityScheme {
         + string type
-        + string description
+        + string description (optional)
     }
 
     class APIKeySecurityScheme {
         + string type = "apiKey"
-        + string in
         + string name
+        --
+        ' in_: In (header | query | cookie)
     }
 
     class HTTPAuthSecurityScheme {
         + string type = "http"
         + string scheme
-        + string bearerFormat
+        + string bearerFormat (optional)
     }
 
     class OAuth2SecurityScheme {
@@ -289,100 +306,302 @@ package "Google A2A Protocol" {
 
     class OAuthFlows {
         --
-        ' authorizationCode: AuthorizationCodeOAuthFlow
-        ' clientCredentials: ClientCredentialsOAuthFlow
-        ' deviceCode: DeviceCodeOAuthFlow
+        ' implicit: ImplicitOAuthFlow (optional)
+        ' password: PasswordOAuthFlow (optional)
+        ' clientCredentials: ClientCredentialsOAuthFlow (optional)
+        ' authorizationCode: AuthorizationCodeOAuthFlow (optional)
+        ' deviceCode: DeviceCodeOAuthFlow (optional)
+    }
+
+    class ImplicitOAuthFlow {
+        + string authorizationUrl
+        + string refreshUrl (optional)
+        + Map<string, string> scopes
+    }
+
+    class PasswordOAuthFlow {
+        + string tokenUrl
+        + string refreshUrl (optional)
+        + Map<string, string> scopes
+    }
+
+    class ClientCredentialsOAuthFlow {
+        + string tokenUrl
+        + string refreshUrl (optional)
+        + Map<string, string> scopes
+    }
+
+    class AuthorizationCodeOAuthFlow {
+        + string authorizationUrl
+        + string tokenUrl
+        + string refreshUrl (optional)
+        + Map<string, string> scopes
+    }
+
+    class DeviceCodeOAuthFlow {
+        + string deviceAuthorizationUrl
+        + string tokenUrl
+        + string refreshUrl (optional)
+        + Map<string, string> scopes
     }
 
     ' ─────────────────────────────────────
     ' JSON-RPC LAYER
     ' ─────────────────────────────────────
 
-    class JSONRPCRequest {
+    class JSONRPCMessage {
         + string jsonrpc = "2.0"
-        + string id
-        + string method
-        --
-        ' params: object
+        + string | int id (optional)
     }
 
-    class JSONRPCResponse {
+    class JSONRPCRequest {
         + string jsonrpc = "2.0"
-        + string id
+        + string method
+        + string | int id (optional)
         --
-        ' result: object
-        ' error: JSONRPCError
+        ' params: object (optional)
+    }
+
+    class JSONRPCSuccessResponse {
+        + string jsonrpc = "2.0"
+        + string | int id (optional)
+        --
+        ' result: any
+    }
+
+    class JSONRPCErrorResponse {
+        + string jsonrpc = "2.0"
+        + string | int id (optional)
+        --
+        ' error: JSONRPCError (union of all error types)
     }
 
     class JSONRPCError {
         + int code
         + string message
-        + any data
+        + any data (optional)
     }
 
     ' ─────────────────────────────────────
-    ' OPERATION PAYLOADS
+    ' ERROR TYPES (A2A-specific + standard)
+    ' ─────────────────────────────────────
+
+    class JSONParseError {
+        + int code = -32700
+        + string message = "Invalid JSON payload"
+        + any data (optional)
+    }
+
+    class InvalidRequestError {
+        + int code = -32600
+        + string message = "Request payload validation error"
+        + any data (optional)
+    }
+
+    class MethodNotFoundError {
+        + int code = -32601
+        + string message = "Method not found"
+        + any data (optional)
+    }
+
+    class InvalidParamsError {
+        + int code = -32602
+        + string message = "Invalid parameters"
+        + any data (optional)
+    }
+
+    class InternalError {
+        + int code = -32603
+        + string message = "Internal error"
+        + any data (optional)
+    }
+
+    class TaskNotFoundError {
+        + int code = -32001
+        + string message = "Task not found"
+        + any data (optional)
+    }
+
+    class TaskNotCancelableError {
+        + int code = -32002
+        + string message = "Task cannot be canceled"
+        + any data (optional)
+    }
+
+    class PushNotificationNotSupportedError {
+        + int code = -32003
+        + string message = "Push Notification is not supported"
+        + any data (optional)
+    }
+
+    class UnsupportedOperationError {
+        + int code = -32004
+        + string message = "This operation is not supported"
+        + any data (optional)
+    }
+
+    class ContentTypeNotSupportedError {
+        + int code = -32005
+        + string message = "Incompatible content types"
+        + any data (optional)
+    }
+
+    class InvalidAgentResponseError {
+        + int code = -32006
+        + string message = "Invalid agent response"
+        + any data (optional)
+    }
+
+    ' ─────────────────────────────────────
+    ' OPERATION PAYLOADS — Requests
     ' ─────────────────────────────────────
 
     class SendMessageRequest {
-        + string id
+        + string jsonrpc = "2.0"
+        + string method = "message/send"
+        + string | int id
+        --
+        ' params: MessageSendParams
+    }
+
+    class SendStreamingMessageRequest {
+        + string jsonrpc = "2.0"
+        + string method = "message/stream"
+        + string | int id
         --
         ' params: MessageSendParams
     }
 
     class MessageSendParams {
-        + string contextId
-        + int historyLength
-        + Map<string, any> metadata
+        + string contextId (optional)
+        + Map<string, any> metadata (optional)
         --
         ' message: Message
-        ' configuration: SendMessageConfiguration
+        ' configuration: MessageSendConfiguration (optional)
     }
 
-    class SendMessageConfiguration {
-        + boolean blocking
+    class MessageSendConfiguration {
         + string[] acceptedOutputModes
-        + int historyLength
-        + Map<string, any> metadata
+        + boolean blocking (optional)
+        + int historyLength (optional)
         --
-        ' pushNotificationConfig: PushNotificationConfig
+        ' pushNotificationConfig: PushNotificationConfig (optional)
     }
 
     class GetTaskRequest {
-        + string id
+        + string jsonrpc = "2.0"
+        + string method = "tasks/get"
+        + string | int id
         --
         ' params: TaskQueryParams
     }
 
     class TaskQueryParams {
-        + string taskId
-        + int historyLength
-        + Map<string, any> metadata
+        + string id
+        + int historyLength (optional)
+        + Map<string, any> metadata (optional)
     }
 
     class ListTasksRequest {
-        + string id
+        + string jsonrpc = "2.0"
+        + string method = "tasks/list"
+        + string | int id
         --
-        ' params: TaskListParams
+        ' params: TaskListParams (optional)
     }
 
     class TaskListParams {
-        + string contextId
-        + string status
-        + int pageSize
-        + string pageToken
-        + int historyLength
+        + string contextId (optional)
+        + string status (optional)
+        + int pageSize (optional)
+        + string pageToken (optional)
+        + int historyLength (optional)
     }
 
     class CancelTaskRequest {
-        + string id
+        + string jsonrpc = "2.0"
+        + string method = "tasks/cancel"
+        + string | int id
         --
         ' params: TaskIdParams
     }
 
     class TaskIdParams {
-        + string taskId
-        + Map<string, any> metadata
+        + string id
+        + Map<string, any> metadata (optional)
+    }
+
+    class ResubscribeToTaskRequest {
+        + string jsonrpc = "2.0"
+        + string method = "tasks/resubscribe"
+        + string | int id
+        --
+        ' params: TaskIdParams
+    }
+
+    class SetTaskPushNotificationConfigRequest {
+        + string jsonrpc = "2.0"
+        + string method = "tasks/pushNotificationConfig/set"
+        + string | int id
+        --
+        ' params: TaskPushNotificationConfig
+    }
+
+    class GetTaskPushNotificationConfigRequest {
+        + string jsonrpc = "2.0"
+        + string method = "tasks/pushNotificationConfig/get"
+        + string | int id
+        --
+        ' params: TaskIdParams
+    }
+
+    class ListTaskPushNotificationConfigRequest {
+        + string jsonrpc = "2.0"
+        + string method = "tasks/pushNotificationConfig/list"
+        + string | int id
+        --
+        ' params: TaskIdParams
+    }
+
+    class DeleteTaskPushNotificationConfigRequest {
+        + string jsonrpc = "2.0"
+        + string method = "tasks/pushNotificationConfig/delete"
+        + string | int id
+        --
+        ' params: PushNotificationConfigIdentifier
+    }
+
+    class PushNotificationConfigIdentifier {
+        + string id
+        + string taskId (optional)
+    }
+
+    ' ─────────────────────────────────────
+    ' OPERATION PAYLOADS — Responses
+    ' ─────────────────────────────────────
+
+    class SendMessageResponse {
+        ' result: Task | Message
+    }
+
+    class GetTaskResponse {
+        ' result: Task
+    }
+
+    class CancelTaskResponse {
+        ' result: Task
+    }
+
+    class SetTaskPushNotificationConfigResponse {
+        ' result: TaskPushNotificationConfig
+    }
+
+    class GetTaskPushNotificationConfigResponse {
+        ' result: TaskPushNotificationConfig
+    }
+
+    class ListTaskPushNotificationConfigResponse {
+        ' result: TaskPushNotificationConfig[]
     }
 
     ' ─────────────────────────────────────
@@ -392,86 +611,113 @@ package "Google A2A Protocol" {
     interface A2AServer {
         + AgentCard getAgentCard()
         + AgentCard getExtendedAgentCard()
-        + Task sendMessage(SendMessageRequest request)
-        + Stream<Event> sendStreamingMessage(SendMessageRequest request)
-        + Task getTask(GetTaskRequest request)
-        + Task[] listTasks(ListTasksRequest request)
-        + Task cancelTask(CancelTaskRequest request)
-        + void subscribeToTask(string taskId)
-        + PushNotificationConfig createPushNotificationConfig(PushNotificationConfig config)
-        + PushNotificationConfig getPushNotificationConfig(string configId)
-        + PushNotificationConfig[] listPushNotificationConfigs()
-        + void deletePushNotificationConfig(string configId)
+        + Task|Message sendMessage(SendMessageRequest)
+        + Stream<Event> sendStreamingMessage(SendStreamingMessageRequest)
+        + Task getTask(GetTaskRequest)
+        + Task[] listTasks(ListTasksRequest)
+        + Task cancelTask(CancelTaskRequest)
+        + Stream<Event> resubscribeToTask(ResubscribeToTaskRequest)
+        + TaskPushNotificationConfig setPushNotificationConfig(SetTaskPushNotificationConfigRequest)
+        + TaskPushNotificationConfig getPushNotificationConfig(GetTaskPushNotificationConfigRequest)
+        + TaskPushNotificationConfig[] listPushNotificationConfigs(ListTaskPushNotificationConfigRequest)
+        + void deletePushNotificationConfig(DeleteTaskPushNotificationConfigRequest)
     }
 
     class A2AClient {
         + A2AClient(string agentUrl)
         + AgentCard discover()
-        + Task sendMessage(Message message, SendMessageConfiguration config)
-        + Stream<Event> sendStreamingMessage(Message message)
-        + Task getTask(string taskId)
-        + Task[] listTasks(TaskListParams params)
+        + Task|Message sendMessage(Message, MessageSendConfiguration)
+        + Stream<Event> sendStreamingMessage(Message, MessageSendConfiguration)
+        + Task getTask(string taskId, int historyLength)
+        + Task[] listTasks(TaskListParams)
         + Task cancelTask(string taskId)
-        + void subscribeToTask(string taskId)
-        + PushNotificationConfig setPushNotification(string taskId, PushNotificationConfig config)
+        + Stream<Event> resubscribeToTask(string taskId)
+        + TaskPushNotificationConfig setPushNotificationConfig(string taskId, PushNotificationConfig)
+        + TaskPushNotificationConfig getPushNotificationConfig(string taskId)
+        + TaskPushNotificationConfig[] listPushNotificationConfigs(string taskId)
+        + void deletePushNotificationConfig(string pushConfigId)
     }
 
-    class AgentExecutor {
-        + {abstract} void execute(RequestContext context, EventQueue queue)
-        + {abstract} Task cancel(RequestContext context, EventQueue queue)
+    abstract class AgentExecutor {
+        + {abstract} void execute(RequestContext, EventQueue)
+        + {abstract} void cancel(RequestContext, EventQueue)
     }
 
     class RequestContext {
         + string taskId
         + string contextId
-        + string conversationId
         + Message message
+        + Task currentTask (optional)
         + string getUserInput()
     }
 
     class EventQueue {
-        + void enqueueEvent(Event event)
+        + void enqueueEvent(TaskStatusUpdateEvent | TaskArtifactUpdateEvent)
+        + void close()
     }
 
     ' ─────────────────────────────────────
-    ' RELATIONSHIPS — AgentCard composition
+    ' RELATIONSHIPS
     ' ─────────────────────────────────────
 
+    ' Base model inheritance
+    A2ABaseModel <|-- AgentCard
+    A2ABaseModel <|-- AgentCapabilities
+    A2ABaseModel <|-- AgentSkill
+    A2ABaseModel <|-- AgentProvider
+    A2ABaseModel <|-- AgentInterface
+    A2ABaseModel <|-- AgentExtension
+    A2ABaseModel <|-- Task
+    A2ABaseModel <|-- TaskStatus
+    A2ABaseModel <|-- Message
+    A2ABaseModel <|-- Part
+    A2ABaseModel <|-- Artifact
+    A2ABaseModel <|-- PushNotificationConfig
+    A2ABaseModel <|-- TaskPushNotificationConfig
+    A2ABaseModel <|-- SecurityScheme
+
+    ' AgentCard composition
     AgentCard "1" *-- "1" AgentCapabilities : has
     AgentCard "1" *-- "0..1" AgentProvider : providedBy
-    AgentCard "1" *-- "many" AgentSkill : exposes
-    AgentCard "1" *-- "many" AgentInterface : supportsTransportVia
-    AgentCard "1" *-- "0..many" AgentExtension : declares
-    AgentCard "1" *-- "0..many" AgentCardSignature : signedWith
-    AgentCard "0..many" *-- "many" SecurityScheme : securedBy
+    AgentCard "1" *-- "1..*" AgentSkill : exposes
+    AgentCard "1" *-- "0..*" AgentInterface : supportsTransportVia
+    AgentCard "1" *-- "0..*" AgentExtension : declares
+    AgentCard "1" *-- "0..*" AgentCardSignature : signedWith
+    AgentCard "1" *-- "0..*" SecurityScheme : securedBy
+
+    ' AgentInterface uses TransportType
+    AgentInterface ..> TransportType : uses
+
+    ' APIKeySecurityScheme uses In
+    APIKeySecurityScheme ..> In : location
 
     ' Task composition
     Task "1" *-- "1" TaskStatus : hasStatus
-    Task "1" *-- "0..many" Message : history
-    Task "1" *-- "0..many" Artifact : produces
+    Task "1" *-- "0..*" Message : history
+    Task "1" *-- "0..*" Artifact : produces
     TaskStatus "1" *-- "1" TaskState : state
     TaskStatus "0..1" *-- "0..1" Message : lastAgentMessage
 
     ' Message composition
-    Message "1" *-- "many" Part : consistsOf
+    Message "1" *-- "1..*" Part : consistsOf
     Message "1" -- "1" Role : sentBy
 
     ' Part subtypes
     Part <|-- TextPart
     Part <|-- FilePart
     Part <|-- DataPart
-    FilePart "1" *-- "1" FileWithBytes : OR
-    FilePart "1" *-- "1" FileWithUri : OR
+    FilePart "1" *-- "1" FileWithBytes : orBytes
+    FilePart "1" *-- "1" FileWithUri : orUri
 
     ' Artifact composition
-    Artifact "1" *-- "many" Part : madeOf
+    Artifact "1" *-- "1..*" Part : madeOf
 
     ' Streaming events
     TaskStatusUpdateEvent "1" *-- "1" TaskStatus : carries
     TaskArtifactUpdateEvent "1" *-- "1" Artifact : carries
 
     ' Push notification composition
-    PushNotificationConfig "1" *-- "0..1" AuthenticationInfo : securedBy
+    PushNotificationConfig "1" *-- "0..1" PushNotificationAuthenticationInfo : securedBy
     TaskPushNotificationConfig "1" *-- "1" PushNotificationConfig : wraps
 
     ' Security scheme subtypes
@@ -481,46 +727,97 @@ package "Google A2A Protocol" {
     SecurityScheme <|-- OpenIdConnectSecurityScheme
     SecurityScheme <|-- MutualTlsSecurityScheme
     OAuth2SecurityScheme "1" *-- "1" OAuthFlows : defines
+    OAuthFlows "0..1" *-- "0..1" ImplicitOAuthFlow : implicit
+    OAuthFlows "0..1" *-- "0..1" PasswordOAuthFlow : password
+    OAuthFlows "0..1" *-- "0..1" ClientCredentialsOAuthFlow : clientCredentials
+    OAuthFlows "0..1" *-- "0..1" AuthorizationCodeOAuthFlow : authorizationCode
+    OAuthFlows "0..1" *-- "0..1" DeviceCodeOAuthFlow : deviceCode
 
-    ' JSON-RPC structure
-    JSONRPCResponse "0..1" *-- "0..1" JSONRPCError : containsOnError
+    ' JSON-RPC hierarchy
+    JSONRPCMessage <|-- JSONRPCRequest
+    JSONRPCMessage <|-- JSONRPCSuccessResponse
+    JSONRPCMessage <|-- JSONRPCErrorResponse
+    JSONRPCErrorResponse "1" *-- "1" JSONRPCError : containsOnError
 
-    ' Request payloads
+    ' Error type hierarchy
+    JSONRPCError <|-- JSONParseError
+    JSONRPCError <|-- InvalidRequestError
+    JSONRPCError <|-- MethodNotFoundError
+    JSONRPCError <|-- InvalidParamsError
+    JSONRPCError <|-- InternalError
+    JSONRPCError <|-- TaskNotFoundError
+    JSONRPCError <|-- TaskNotCancelableError
+    JSONRPCError <|-- PushNotificationNotSupportedError
+    JSONRPCError <|-- UnsupportedOperationError
+    JSONRPCError <|-- ContentTypeNotSupportedError
+    JSONRPCError <|-- InvalidAgentResponseError
+
+    ' Request payloads (all extend JSONRPCRequest)
+    JSONRPCRequest <|-- SendMessageRequest
+    JSONRPCRequest <|-- SendStreamingMessageRequest
+    JSONRPCRequest <|-- GetTaskRequest
+    JSONRPCRequest <|-- ListTasksRequest
+    JSONRPCRequest <|-- CancelTaskRequest
+    JSONRPCRequest <|-- ResubscribeToTaskRequest
+    JSONRPCRequest <|-- SetTaskPushNotificationConfigRequest
+    JSONRPCRequest <|-- GetTaskPushNotificationConfigRequest
+    JSONRPCRequest <|-- ListTaskPushNotificationConfigRequest
+    JSONRPCRequest <|-- DeleteTaskPushNotificationConfigRequest
+
+    ' Response payloads (all extend JSONRPCSuccessResponse)
+    JSONRPCSuccessResponse <|-- SendMessageResponse
+    JSONRPCSuccessResponse <|-- GetTaskResponse
+    JSONRPCSuccessResponse <|-- CancelTaskResponse
+    JSONRPCSuccessResponse <|-- SetTaskPushNotificationConfigResponse
+    JSONRPCSuccessResponse <|-- GetTaskPushNotificationConfigResponse
+    JSONRPCSuccessResponse <|-- ListTaskPushNotificationConfigResponse
+
+    ' Request params composition
     SendMessageRequest "1" *-- "1" MessageSendParams : params
+    SendStreamingMessageRequest "1" *-- "1" MessageSendParams : params
     MessageSendParams "1" *-- "1" Message : includes
-    MessageSendParams "0..1" *-- "0..1" SendMessageConfiguration : configuredBy
-    SendMessageConfiguration "0..1" *-- "0..1" PushNotificationConfig : notifyVia
+    MessageSendParams "0..1" *-- "0..1" MessageSendConfiguration : configuredBy
+    MessageSendConfiguration "0..1" *-- "0..1" PushNotificationConfig : notifyVia
 
     GetTaskRequest "1" *-- "1" TaskQueryParams : params
-    ListTasksRequest "1" *-- "1" TaskListParams : params
+    ListTasksRequest "0..1" *-- "0..1" TaskListParams : params
     CancelTaskRequest "1" *-- "1" TaskIdParams : params
+    ResubscribeToTaskRequest "1" *-- "1" TaskIdParams : params
+    SetTaskPushNotificationConfigRequest "1" *-- "1" TaskPushNotificationConfig : params
+    GetTaskPushNotificationConfigRequest "1" *-- "1" TaskIdParams : params
+    ListTaskPushNotificationConfigRequest "1" *-- "1" TaskIdParams : params
+    DeleteTaskPushNotificationConfigRequest "1" *-- "1" PushNotificationConfigIdentifier : params
 
-    ' Service layer usage
+    ' Service layer
     A2AServer ..> AgentCard : exposes
     A2AServer ..> Task : manages
     A2AServer ..> TaskStatusUpdateEvent : emits
     A2AServer ..> TaskArtifactUpdateEvent : emits
     A2AServer ..> PushNotificationConfig : manages
+    A2AServer ..> AgentExecutor : delegatesTo
 
     A2AClient ..> SendMessageRequest : constructs
+    A2AClient ..> SendStreamingMessageRequest : constructs
     A2AClient ..> Task : receives
     A2AClient ..> TaskStatusUpdateEvent : receives
     A2AClient ..> TaskArtifactUpdateEvent : receives
-    A2AClient --> A2AServer : communicates via HTTP/JSON-RPC/gRPC
+    A2AClient --> A2AServer : communicatesVia HTTP/JSON-RPC/gRPC
 
-    A2AServer ..> AgentExecutor : delegates to
     AgentExecutor ..> RequestContext : processes
     AgentExecutor ..> EventQueue : publishesTo
+    EventQueue ..> TaskStatusUpdateEvent : queues
+    EventQueue ..> TaskArtifactUpdateEvent : queues
 }
 
 legend right
-  |= Symbol |= Meaning |
-  | *-- | Composition |
-  | <|-- | Inheritance / Subtype |
-  | ..> | Dependency / Usage |
-  | --> | Association |
-  Sources: a2a-protocol.org specification RC1/v0.3,
-  official Python SDK types, GitHub a2aproject/A2A
+  |= Symbol    |= Meaning              |
+  | *--        | Composition           |
+  | <|--       | Inheritance/Subtype   |
+  | ..>        | Dependency/Usage      |
+  | -->        | Association           |
+  Sources: a2aprotocol.ai spec v0.2.5,
+  official Python SDK types.py,
+  GitHub a2aproject/A2A
 endlegend
 
 @enduml
